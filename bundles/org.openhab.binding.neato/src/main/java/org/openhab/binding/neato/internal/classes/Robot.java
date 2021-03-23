@@ -29,6 +29,8 @@ public class Robot {
     private String model;
     @SerializedName("secret_key")
     private String secretKey;
+    @SerializedName("navigation_mode")
+    private int navigationMode;
     private List<Object> traits = null;
     @SerializedName("purchased_at")
     private Object purchasedAt;
@@ -83,6 +85,14 @@ public class Robot {
 
     public void setSecretKey(String secretKey) {
         this.secretKey = secretKey;
+    }
+
+    public int getNavigationMode() {
+        return navigationMode;
+    }
+
+    public void setNavigationMode(int navigationMode) {
+        this.navigationMode = navigationMode;
     }
 
     public Object getPurchasedAt() {

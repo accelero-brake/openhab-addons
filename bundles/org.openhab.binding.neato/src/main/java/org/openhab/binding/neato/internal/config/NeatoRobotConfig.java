@@ -23,6 +23,7 @@ public class NeatoRobotConfig {
     private int refresh;
     private String secret;
     private String serial;
+    private int navigationMode;
 
     public int getRefresh() {
         return refresh;
@@ -48,8 +49,17 @@ public class NeatoRobotConfig {
         this.serial = serial;
     }
 
+    public int getNavigationMode() {
+        return navigationMode;
+    }
+
+    public void setNavigationMode(int navigationMode) {
+        this.navigationMode = navigationMode;
+    }
+
     @Override
     public String toString() {
-        return "NeatoRobotConfig [refresh=" + refresh + ", secret=" + secret + ", serial=" + serial + "]";
+        return "NeatoRobotConfig [refresh=" + refresh + ", secret=" + secret + ", serial=" + serial
+                + ", navigationMode=" + navigationMode + "]";
     }
 }

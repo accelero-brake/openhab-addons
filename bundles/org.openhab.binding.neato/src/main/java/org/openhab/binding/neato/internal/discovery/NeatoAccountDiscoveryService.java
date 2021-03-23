@@ -95,6 +95,7 @@ public class NeatoAccountDiscoveryService extends AbstractDiscoveryService {
         ThingUID thingUID = new ThingUID(NeatoBindingConstants.THING_TYPE_VACUUMCLEANER, bridgeUID, robot.getSerial());
         properties.put(NeatoBindingConstants.CONFIG_SECRET, robot.getSecretKey());
         properties.put(NeatoBindingConstants.CONFIG_SERIAL, robot.getSerial());
+        properties.put(NeatoBindingConstants.CONFIG_NAVIGATION_MODE, robot.getNavigationMode());
         properties.put(Thing.PROPERTY_MODEL_ID, robot.getModel());
         properties.put(NeatoBindingConstants.PROPERTY_NAME, robot.getName());
 

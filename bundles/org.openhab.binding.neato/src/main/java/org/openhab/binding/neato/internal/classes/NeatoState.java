@@ -71,7 +71,8 @@ public class NeatoState {
         EXPLORING_MAP(12),
         AQUIRING_MAP_IDS(13),
         CREATING_MAP(14),
-        SUSPENDED_EXPLORATION(15);
+        SUSPENDED_EXPLORATION(15),
+        FIND_ME(16);
 
         private int value;
 

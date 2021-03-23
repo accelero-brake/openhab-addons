@@ -25,6 +25,7 @@ public class AvailableServices {
     private String easyConnect;
     private String schedule;
     private String generalInfo;
+    private String findMe;
 
     public String getGeneralInfo() {
         return generalInfo;
@@ -72,5 +73,13 @@ public class AvailableServices {
 
     public void setSchedule(String schedule) {
         this.schedule = schedule;
+    }
+
+    public String getFindMe() {
+        return findMe;
+    }
+
+    public void setFindMe(String findMe) {
+        this.findMe = findMe;
     }
 }

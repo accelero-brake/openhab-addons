@@ -15,7 +15,6 @@ package org.openhab.binding.neato.internal;
 import static org.openhab.binding.neato.internal.classes.Category.HOUSE;
 import static org.openhab.binding.neato.internal.classes.Category.MAP;
 import static org.openhab.binding.neato.internal.classes.Mode.TURBO;
-import static org.openhab.binding.neato.internal.classes.NavigationMode.DEEP;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -57,6 +56,7 @@ public class NeatoRobot {
 
     private String serialNumber;
     private String secret;
+    private int navigationMode;
 
     private NeatoState state;
     private NeatoRobotInfo info;
@@ -67,6 +67,7 @@ public class NeatoRobot {
     public NeatoRobot(NeatoRobotConfig config) {
         this.serialNumber = config.getSerial();
         this.secret = config.getSecret();
+        this.navigationMode = config.getNavigationMode();
     }
 
     public NeatoState getState() {
@@ -150,7 +151,8 @@ public class NeatoRobot {
                     // From the Neato API Docs...
                     // Note that navigationMode can only be set to 3 if mode is 2,
                     // otherwise an error will be returned.
-                    navigationMode = DEEP.getNavigationMode();
+                    navigationMode = this.navigationMode;
+                    // navigationMode = DEEP.getNavigationMode();
                 }
                 request.addParam("navigationMode", navigationMode);
             }
@@ -158,7 +160,7 @@ public class NeatoRobot {
             request.setCmd("startCleaning");
             request.addParam("category", MAP.getCategory());
             request.addParam("mode", TURBO.getMode());
-            request.addParam("navigationMode", DEEP.getNavigationMode());
+            request.addParam("navigationMode", this.navigationMode);
         } else if ("pause".equalsIgnoreCase(command)) {
             request.setCmd("pauseCleaning");
         } else if ("stop".equalsIgnoreCase(command)) {
@@ -169,6 +171,8 @@ public class NeatoRobot {
             request.setCmd("sendToBase");
         } else if ("dismissAlert".equalsIgnoreCase(command)) {
             request.setCmd("dismissCurrentAlert");
+        } else if ("findMe".equalsIgnoreCase(command)) {
+            request.setCmd("findMe");
         } else {
             logger.debug("Unexpected command received: {}", command);
             return;
