@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="bh1750"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<!-- Sample Thing Type -->
+	<thing-type id="lightSensor">
+		<!-- Comment this in for Things which need a Bridge to function. <supported-bridge-type-refs>
+			<bridge-type-ref id="bh1750Bridge" /> </supported-bridge-type-refs> -->
+
+		<label>bh1750 lightMeasure binding Thing</label>
+		<description>lightMeasure thing for bh1750 Binding</description>
+
+		<channels>
+			<channel id="lightMeasure" typeId="light-measure-channel"/>
+		</channels>
+
+		<config-description uri="thing-type:i2c:config">
+			<parameter name="address" type="text">
+				<label>I2C Device Address</label>
+				<description>I2C Bus device address in HEX</description>
+				<default>23</default>
+			</parameter>
+			<parameter name="bus_number" type="integer" min="0" max="16">
+				<label>I2C BUS Number</label>
+				<description>I2C Bus number</description>
+				<default>1</default>
+			</parameter>
+			<parameter name="refresh" type="integer" min="0" unit="s">
+				<label>Refresh Rate</label>
+				<description>Refresh rate to check I2C pin state. If 0 no refresh is done.</description>
+				<default>50</default>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- Light measure Channel Type -->
+	<channel-type id="light-measure-channel">
+		<item-type>Number:Illuminance</item-type>
+		<label>Light measure</label><!-- Use uppercase words, except prepositions.
+			2-3 words, max 25 chars -->
+		<description>Light measure for bh1750 Binding</description>
+	</channel-type>
+</thing:thing-descriptions>
