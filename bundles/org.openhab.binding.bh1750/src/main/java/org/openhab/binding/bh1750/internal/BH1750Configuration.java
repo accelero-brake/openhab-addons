@@ -19,21 +19,7 @@ package org.openhab.binding.bh1750.internal;
  */
 public class BH1750Configuration {
 
-    public String address;
-    public int busNumber;
     public int refresh;
-
-    public String getAddress() {
-        return address;
-    }
-
-    public int getAddressHex() {
-        return Integer.parseInt(address, 16);
-    }
-
-    public int getBusNumber() {
-        return busNumber;
-    }
 
     public int getRefresh() {
         return refresh;

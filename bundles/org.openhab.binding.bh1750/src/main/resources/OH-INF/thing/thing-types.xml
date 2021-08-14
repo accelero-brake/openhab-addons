@@ -9,7 +9,7 @@
 		<!-- Comment this in for Things which need a Bridge to function. <supported-bridge-type-refs>
 			<bridge-type-ref id="bh1750Bridge" /> </supported-bridge-type-refs> -->
 
-		<label>bh1750 lightMeasure binding Thing</label>
+		<label>bh1750 lightMeasure Thing</label>
 		<description>lightMeasure thing for bh1750 Binding</description>
 
 		<channels>
@@ -17,20 +17,10 @@
 		</channels>
 
 		<config-description uri="thing-type:i2c:config">
-			<parameter name="address" type="text">
-				<label>I2C Device Address</label>
-				<description>I2C Bus device address in HEX</description>
-				<default>23</default>
-			</parameter>
-			<parameter name="bus_number" type="integer" min="0" max="16">
-				<label>I2C BUS Number</label>
-				<description>I2C Bus number</description>
-				<default>1</default>
-			</parameter>
 			<parameter name="refresh" type="integer" min="0" unit="s">
 				<label>Refresh Rate</label>
 				<description>Refresh rate to check I2C pin state. If 0 no refresh is done.</description>
-				<default>50</default>
+				<default>60</default>
 			</parameter>
 		</config-description>
 	</thing-type>

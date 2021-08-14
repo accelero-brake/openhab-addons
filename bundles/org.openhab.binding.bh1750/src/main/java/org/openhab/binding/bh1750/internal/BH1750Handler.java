@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.pi4j.io.i2c.I2CBus;
-import com.pi4j.io.i2c.I2CDevice;
 
 /**
  * The {@link BH1750Handler} is responsible for handling commands, which are
@@ -48,20 +47,12 @@ public class BH1750Handler extends BaseThingHandler/* implements GpioPinListener
 
     private @Nullable BH1750Configuration configuration;
 
-    private @Nullable I2CDevice device;
-
     private @Nullable BH1750FVIDriver bh1750fvi;
-
-    private int addressHex;
 
     private @Nullable ScheduledFuture<?> refreshFuture;
 
     public BH1750Handler(Thing thing) {
         super(thing);
-    }
-
-    public boolean isAlive() throws IOException {
-        return device != null && device.read(addressHex) >= 0;
     }
 
     @Override
@@ -78,7 +69,7 @@ public class BH1750Handler extends BaseThingHandler/* implements GpioPinListener
     public void refresh() {
         boolean restart = false;
         try {
-            if (isAlive()) {
+            if (bh1750fvi != null && bh1750fvi.isAlive()) {
                 for (final Channel channel : getThing().getChannels()) {
                     final ChannelUID uid = channel.getUID();
 
@@ -160,6 +151,7 @@ public class BH1750Handler extends BaseThingHandler/* implements GpioPinListener
 
     private void handleRefresh(final ChannelUID channelUID) throws IOException {
         if (CHANNEL_LIGHT_MEASURE.equals(channelUID.getId())) {
+            logger.debug("Optical: {}", bh1750fvi.getOptical());
             updateState(channelUID, new DecimalType(bh1750fvi.getOptical()));
         } else {
             logger.error("Unsupported channel");

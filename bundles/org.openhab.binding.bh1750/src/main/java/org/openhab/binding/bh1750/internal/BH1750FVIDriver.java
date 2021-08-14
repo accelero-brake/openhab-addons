@@ -177,6 +177,10 @@ public class BH1750FVIDriver {
         }
     }
 
+    public boolean isAlive() throws IOException {
+        return i2cDevice != null && i2cDevice.read() >= 0;
+    }
+
     public float getOptical() throws IOException {
         write(OPECODE_ONE_TIME_H_RESOLUTION_MODE);
 
