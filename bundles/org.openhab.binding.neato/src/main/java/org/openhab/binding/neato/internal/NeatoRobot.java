@@ -146,20 +146,13 @@ public class NeatoRobot {
                 request.addParam("mode", this.state.getCleaning().getModeValue());
                 request.addParam("category", HOUSE.getCategory());
 
-                Integer navigationMode = this.state.getCleaning().getNavigationModeValue();
-                if (Integer.valueOf(TURBO.getMode()).equals(this.state.getCleaning().getModeValue())) {
-                    // From the Neato API Docs...
-                    // Note that navigationMode can only be set to 3 if mode is 2,
-                    // otherwise an error will be returned.
-                    navigationMode = this.navigationMode;
-                    // navigationMode = DEEP.getNavigationMode();
-                }
+                Integer navigationMode = this.navigationMode;
                 request.addParam("navigationMode", navigationMode);
             }
         } else if ("cleanWithMap".equalsIgnoreCase(command)) {
             request.setCmd("startCleaning");
             request.addParam("category", MAP.getCategory());
-            request.addParam("mode", TURBO.getMode());
+            request.addParam("mode", this.state.getCleaning().getModeValue());
             request.addParam("navigationMode", this.navigationMode);
         } else if ("pause".equalsIgnoreCase(command)) {
             request.setCmd("pauseCleaning");
