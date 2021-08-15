@@ -14,7 +14,6 @@ package org.openhab.binding.neato.internal;
 
 import static org.openhab.binding.neato.internal.classes.Category.HOUSE;
 import static org.openhab.binding.neato.internal.classes.Category.MAP;
-import static org.openhab.binding.neato.internal.classes.Mode.TURBO;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
