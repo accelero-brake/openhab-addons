@@ -182,16 +182,16 @@ public class BH1750FVIDriver {
     }
 
     public float getOptical() throws IOException {
-        write(OPECODE_ONE_TIME_H_RESOLUTION_MODE);
+        write(OPECODE_ONE_TIME_H_RESOLUTION_MODE2);
 
         try {
-            Thread.sleep(H_RESOLUTION_MODE_MEASUREMENT_TIME_MILLIS);
+            Thread.sleep(H_RESOLUTION_MODE2_MEASUREMENT_TIME_MILLIS);
         } catch (InterruptedException e) {
         }
 
         byte[] data = read(SENSOR_DATA_LENGTH);
 
-        return (float) ((((int) (data[0] & 0xff) << 8) + (int) (data[1] & 0xff)) / 1.2);
+        return (float) ((((int) (data[0] & 0xff) << 8) + (int) (data[1] & 0xff)) / 2.4);
     }
 
     /******************************************************************************************************************
