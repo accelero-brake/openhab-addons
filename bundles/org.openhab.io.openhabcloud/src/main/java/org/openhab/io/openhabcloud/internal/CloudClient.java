@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,14 +52,14 @@ import org.openhab.core.common.ThreadPoolManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.socket.backo.Backoff;
 import io.socket.client.IO;
+import io.socket.client.IO.Options;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
 import io.socket.engineio.client.Transport;
 import io.socket.engineio.client.transports.WebSocket;
-import io.socket.parser.Packet;
-import io.socket.parser.Parser;
 import okhttp3.OkHttpClient.Builder;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
@@ -268,16 +269,11 @@ public class CloudClient {
                 onEvent("cancel", (JSONObject) args[0]);
             }
         }).on("command", new Emitter.Listener() {
-
-                        if (packetTypeIndex < Parser.types.length) {
-                            type = Parser.types[packetTypeIndex];
-                        } else {
-                            type = "<unknown type>";
-                        }
-                    }
-                    logger.trace("Socket.IO Packet: {} ({})", type, packetTypeIndex);
-                })//
-        ;
+            @Override
+            public void call(Object... args) {
+                onEvent("command", (JSONObject) args[0]);
+            }
+        });
 
         //
         // socket events
