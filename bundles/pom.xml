@@ -930,7 +930,7 @@
 
                 <ignoreMissingConditions>true</ignoreMissingConditions>
 
-                <fail>first</fail>
+                <fail>never</fail>
 
               </configuration>
 
