@@ -18,7 +18,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -33,11 +33,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.client.api.Request.FailureListener;
-import org.eclipse.jetty.client.api.Response;
-import org.eclipse.jetty.client.api.Response.ContentListener;
-import org.eclipse.jetty.client.api.Response.HeadersListener;
-import org.eclipse.jetty.client.api.Result;
 import org.eclipse.jetty.client.util.BytesContentProvider;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
@@ -60,6 +55,8 @@ import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
 import io.socket.engineio.client.Transport;
 import io.socket.engineio.client.transports.WebSocket;
+import io.socket.parser.Packet;
+import io.socket.parser.Parser;
 import okhttp3.OkHttpClient.Builder;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
@@ -212,68 +209,65 @@ public class CloudClient {
             protocol = parsed.getProtocol();
         } catch (URISyntaxException e) {
             logger.error("Error creating Socket.IO: {}", e.getMessage());
+            return;
         } catch (MalformedURLException e) {
             logger.error("Error parsing baseURL to get protocol, assuming https. Error: {}", e.getMessage());
+            return;
         }
-        socket.io().on(Manager.EVENT_TRANSPORT, new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                logger.trace("Manager.EVENT_TRANSPORT");
-                Transport transport = (Transport) args[0];
-                transport.on(Transport.EVENT_REQUEST_HEADERS, new Emitter.Listener() {
-                    @Override
-                    public void call(Object... args) {
-                        logger.trace("Transport.EVENT_REQUEST_HEADERS");
-                        @SuppressWarnings("unchecked")
-                        Map<String, List<String>> headers = (Map<String, List<String>>) args[0];
-                        headers.put("uuid", List.of(uuid));
-                        headers.put("secret", List.of(secret));
-                        headers.put("openhabversion", List.of(OpenHAB.getVersion()));
-                        headers.put("clientversion", List.of(CloudService.clientVersion));
-                        headers.put("remoteaccess", List.of(((Boolean) remoteAccessEnabled).toString()));
+        //
+        // socket manager events
+        //
+        socket.io()//
+                .on(Manager.EVENT_TRANSPORT, args -> {
+                    logger.trace("Manager.EVENT_TRANSPORT");
+                    Transport transport = (Transport) args[0];
+                    transport.on(Transport.EVENT_REQUEST_HEADERS, new Emitter.Listener() {
+                        @Override
+                        public void call(Object... args) {
+                            logger.trace("Transport.EVENT_REQUEST_HEADERS");
+                            @SuppressWarnings("unchecked")
+                            Map<String, List<String>> headers = (Map<String, List<String>>) args[0];
+                            headers.put("uuid", List.of(uuid));
+                            headers.put("secret", List.of(secret));
+                            headers.put("openhabversion", List.of(OpenHAB.getVersion()));
+                            headers.put("clientversion", List.of(CloudService.clientVersion));
+                            headers.put("remoteaccess", List.of(((Boolean) remoteAccessEnabled).toString()));
+                        }
+                    });
+                })//
+                .on(Manager.EVENT_CONNECT_ERROR, args -> {
+                    if (args.length > 0) {
+                        if (args[0] instanceof Exception) {
+                            Exception e = (Exception) args[0];
+                            logger.debug(
+                                    "Error connecting to the openHAB Cloud instance: {} {}. Should reconnect automatically.",
+                                    e.getClass().getSimpleName(), e.getMessage());
+                        } else {
+                            logger.debug(
+                                    "Error connecting to the openHAB Cloud instance: {}. Should reconnect automatically.",
+                                    args[0]);
+                        }
+                    } else {
+                        logger.debug("Error connecting to the openHAB Cloud instance. Should reconnect automatically.");
                     }
-                });
-            }
-        });
-        socket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                logger.debug("Socket.IO connected");
-                isConnected = true;
-                onConnect();
-            }
-        }).on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                logger.debug("Socket.IO disconnected");
-                isConnected = false;
-                onDisconnect();
-            }
-        }).on(Socket.EVENT_ERROR, new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                if (logger.isDebugEnabled()) {
-                    logger.error("Error connecting to the openHAB Cloud instance: {}", args[0]);
-                } else {
-                    logger.error("Error connecting to the openHAB Cloud instance");
-                }
-            }
-        }).on("request", new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                onEvent("request", (JSONObject) args[0]);
-            }
-        }).on("cancel", new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                onEvent("cancel", (JSONObject) args[0]);
-            }
-        }).on("command", new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                onEvent("command", (JSONObject) args[0]);
-            }
-        });
+                })//
+                .on(Manager.EVENT_OPEN, args -> logger.debug("Socket.IO OPEN"))//
+                .on(Manager.EVENT_CLOSE, args -> logger.debug("Socket.IO CLOSE: {}", args[0]))//
+                .on(Manager.EVENT_PACKET, args -> {
+                    int packetTypeIndex = -1;
+                    String type = "<unexpected packet type>";
+                    if (args.length == 1 && args[0] instanceof Packet<?>) {
+                        packetTypeIndex = ((Packet<?>) args[0]).type;
+
+                        if (packetTypeIndex < Parser.types.length) {
+                            type = Parser.types[packetTypeIndex];
+                        } else {
+                            type = "<unknown type>";
+                        }
+                    }
+                    logger.trace("Socket.IO Packet: {} ({})", type, packetTypeIndex);
+                })//
+        ;
 
         //
         // socket events
@@ -373,7 +367,9 @@ public class CloudClient {
      */
 
     public void onConnect() {
-        logger.info("Connected to the openHAB Cloud service (UUID = {}, base URL = {})", this.uuid, this.localBaseUrl);
+        logger.info("Connected to the openHAB Cloud service (UUID = {}, base URL = {})", censored(this.uuid),
+                this.localBaseUrl);
+        reconnectBackoff.reset();
         isConnected = true;
     }
 
@@ -382,19 +378,11 @@ public class CloudClient {
      */
 
     public void onDisconnect() {
-        logger.info("Disconnected from the openHAB Cloud service (UUID = {}, base URL = {})", this.uuid,
+        logger.info("Disconnected from the openHAB Cloud service (UUID = {}, base URL = {})", censored(this.uuid),
                 this.localBaseUrl);
         isConnected = false;
         // And clean up the list of running requests
         runningRequests.clear();
-    }
-
-    /**
-     * Callback method for socket.io client which is called when an error occurs
-     */
-
-    public void onError(IOException error) {
-        logger.debug("{}", error.getMessage());
     }
 
     /**
@@ -425,15 +413,19 @@ public class CloudClient {
             logger.debug("Got request {}", requestId);
             // Get request path
             String requestPath = data.getString("path");
+            logger.debug("Path {}", requestPath);
             // Get request method
             String requestMethod = data.getString("method");
-            // Get request body
-            String requestBody = data.getString("body");
+            logger.debug("Method {}", requestMethod);
             // Get JSONObject for request headers
             JSONObject requestHeadersJson = data.getJSONObject("headers");
-            logger.debug("{}", requestHeadersJson.toString());
+            logger.debug("Headers: {}", requestHeadersJson.toString());
+            // Get request body
+            String requestBody = data.getString("body");
+            logger.trace("Body {}", requestBody);
             // Get JSONObject for request query parameters
             JSONObject requestQueryJson = data.getJSONObject("query");
+            logger.debug("Query {}", requestQueryJson.toString());
             // Create URI builder with base request URI of openHAB and path from request
             String newPath = URIUtil.addPaths(localBaseUrl, requestPath);
             Iterator<String> queryIterator = requestQueryJson.keys();
@@ -461,22 +453,80 @@ public class CloudClient {
                 proto = data.getString("protocol");
             }
             request.header("X-Forwarded-Proto", proto);
-
-            if (requestMethod.equals("GET")) {
-                request.method(HttpMethod.GET);
-            } else if (requestMethod.equals("POST")) {
-                request.method(HttpMethod.POST);
-                request.content(new BytesContentProvider(requestBody.getBytes()));
-            } else if (requestMethod.equals("PUT")) {
-                request.method(HttpMethod.PUT);
-                request.content(new BytesContentProvider(requestBody.getBytes()));
-            } else {
-                // TODO: Reject unsupported methods
-                logger.warn("Unsupported request method {}", requestMethod);
+            HttpMethod method = HttpMethod.fromString(requestMethod);
+            if (method == null) {
+                logger.debug("Unsupported request method {}", requestMethod);
                 return;
             }
-            ResponseListener listener = new ResponseListener(requestId);
-            request.onResponseHeaders(listener).onResponseContent(listener).onRequestFailure(listener).send(listener);
+            request.method(method);
+            if (!requestBody.isEmpty()) {
+                request.content(new BytesContentProvider(requestBody.getBytes()));
+            }
+
+            request.onResponseHeaders(response -> {
+                logger.debug("onHeaders {}", requestId);
+                JSONObject responseJson = new JSONObject();
+                try {
+                    responseJson.put("id", requestId);
+                    responseJson.put("headers", getJSONHeaders(response.getHeaders()));
+                    responseJson.put("responseStatusCode", response.getStatus());
+                    responseJson.put("responseStatusText", "OK");
+                    socket.emit("responseHeader", responseJson);
+                    logger.trace("Sent headers to request {}", requestId);
+                    logger.trace("{}", responseJson.toString());
+                } catch (JSONException e) {
+                    logger.debug("{}", e.getMessage());
+                }
+            }).onResponseContent((theResponse, content) -> {
+                logger.debug("onResponseContent: {}, content size {}", requestId, String.valueOf(content.remaining()));
+                JSONObject responseJson = new JSONObject();
+                try {
+                    responseJson.put("id", requestId);
+                    responseJson.put("body", BufferUtil.toArray(content));
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("{}", StandardCharsets.UTF_8.decode(content).toString());
+                    }
+                    socket.emit("responseContentBinary", responseJson);
+                    logger.trace("Sent content to request {}", requestId);
+                } catch (JSONException e) {
+                    logger.debug("{}", e.getMessage());
+                }
+            }).onRequestFailure((origRequest, failure) -> {
+                logger.debug("onRequestFailure: {},  {}", requestId, failure.getMessage());
+                JSONObject responseJson = new JSONObject();
+                try {
+                    responseJson.put("id", requestId);
+                    responseJson.put("responseStatusText", "openHAB connection error: " + failure.getMessage());
+                    socket.emit("responseError", responseJson);
+                } catch (JSONException e) {
+                    logger.debug("{}", e.getMessage());
+                }
+            }).send(result -> {
+                logger.debug("onComplete: {}", requestId);
+                // Remove this request from list of running requests
+                runningRequests.remove(requestId);
+                if ((result != null && result.isFailed())
+                        && (result.getResponse() != null && result.getResponse().getStatus() != HttpStatus.OK_200)) {
+                    if (result.getFailure() != null) {
+                        logger.debug("Jetty request {} failed: {}", requestId, result.getFailure().getMessage());
+                    }
+                    if (result.getRequestFailure() != null) {
+                        logger.debug("Request Failure: {}", result.getRequestFailure().getMessage());
+                    }
+                    if (result.getResponseFailure() != null) {
+                        logger.debug("Response Failure: {}", result.getResponseFailure().getMessage());
+                    }
+                }
+                JSONObject responseJson = new JSONObject();
+                try {
+                    responseJson.put("id", requestId);
+                    socket.emit("responseFinished", responseJson);
+                    logger.debug("Finished responding to request {}", requestId);
+                } catch (JSONException e) {
+                    logger.debug("{}", e.getMessage());
+                }
+            });
+
             // If successfully submitted request to http client, add it to the list of currently
             // running requests to be able to cancel it if needed
             runningRequests.put(requestId, request);
@@ -657,110 +707,22 @@ public class CloudClient {
         }, delay, TimeUnit.MILLISECONDS))).ifPresent(future -> future.cancel(true));
     }
 
-    /*
-     * An internal class which forwards response headers and data back to the openHAB Cloud
-     */
-    private class ResponseListener
-            implements Response.CompleteListener, HeadersListener, ContentListener, FailureListener {
-
-        private static final String THREADPOOL_OPENHABCLOUD = "openhabcloud";
-        private int mRequestId;
-        private boolean mHeadersSent = false;
-
-        public ResponseListener(int requestId) {
-            mRequestId = requestId;
-        }
-
-        private JSONObject getJSONHeaders(HttpFields httpFields) {
-            JSONObject headersJSON = new JSONObject();
-            try {
-                for (HttpField field : httpFields) {
-                    headersJSON.put(field.getName(), field.getValue());
-                }
-            } catch (JSONException e) {
-                logger.warn("Error forming response headers: {}", e.getMessage());
+    private JSONObject getJSONHeaders(HttpFields httpFields) {
+        JSONObject headersJSON = new JSONObject();
+        try {
+            for (HttpField field : httpFields) {
+                headersJSON.put(field.getName(), field.getValue());
             }
-            return headersJSON;
+        } catch (JSONException e) {
+            logger.warn("Error forming response headers: {}", e.getMessage());
         }
+        return headersJSON;
+    }
 
-        @Override
-        public void onComplete(Result result) {
-            // Remove this request from list of running requests
-            runningRequests.remove(mRequestId);
-            if ((result != null && result.isFailed())
-                    && (result.getResponse() != null && result.getResponse().getStatus() != HttpStatus.OK_200)) {
-                if (result.getFailure() != null) {
-                    logger.warn("Jetty request {} failed: {}", mRequestId, result.getFailure().getMessage());
-                }
-                if (result.getRequestFailure() != null) {
-                    logger.warn("Request Failure: {}", result.getRequestFailure().getMessage());
-                }
-                if (result.getResponseFailure() != null) {
-                    logger.warn("Response Failure: {}", result.getResponseFailure().getMessage());
-                }
-            }
-
-            /**
-             * What is this? In some cases where latency is very low the myopenhab service
-             * can receive responseFinished before the headers or content are received and I
-             * cannot find another workaround to prevent it.
-             */
-            ThreadPoolManager.getScheduledPool(THREADPOOL_OPENHABCLOUD).schedule(() -> {
-                JSONObject responseJson = new JSONObject();
-                try {
-                    responseJson.put("id", mRequestId);
-                    socket.emit("responseFinished", responseJson);
-                    logger.debug("Finished responding to request {}", mRequestId);
-                } catch (JSONException e) {
-                    logger.debug("{}", e.getMessage());
-                }
-            }, 1, TimeUnit.MILLISECONDS);
+    private static String censored(String secret) {
+        if (secret.length() < 4) {
+            return "*******";
         }
-
-        @Override
-        public synchronized void onFailure(Request request, Throwable failure) {
-            JSONObject responseJson = new JSONObject();
-            try {
-                responseJson.put("id", mRequestId);
-                responseJson.put("responseStatusText", "openHAB connection error: " + failure.getMessage());
-                socket.emit("responseError", responseJson);
-            } catch (JSONException e) {
-                logger.debug("{}", e.getMessage());
-            }
-        }
-
-        @Override
-        public void onContent(Response response, ByteBuffer content) {
-            logger.debug("Jetty received response content of size {}", String.valueOf(content.remaining()));
-            JSONObject responseJson = new JSONObject();
-            try {
-                responseJson.put("id", mRequestId);
-                responseJson.put("body", BufferUtil.toArray(content));
-                socket.emit("responseContentBinary", responseJson);
-                logger.debug("Sent content to request {}", mRequestId);
-            } catch (JSONException e) {
-                logger.debug("{}", e.getMessage());
-            }
-        }
-
-        @Override
-        public void onHeaders(Response response) {
-            if (!mHeadersSent) {
-                logger.debug("Jetty finished receiving response header");
-                JSONObject responseJson = new JSONObject();
-                mHeadersSent = true;
-                try {
-                    responseJson.put("id", mRequestId);
-                    responseJson.put("headers", getJSONHeaders(response.getHeaders()));
-                    responseJson.put("responseStatusCode", response.getStatus());
-                    responseJson.put("responseStatusText", "OK");
-                    socket.emit("responseHeader", responseJson);
-                    logger.debug("Sent headers to request {}", mRequestId);
-                    logger.debug("{}", responseJson.toString());
-                } catch (JSONException e) {
-                    logger.debug("{}", e.getMessage());
-                }
-            }
-        }
+        return secret.substring(0, 2) + "..." + secret.substring(secret.length() - 2, secret.length());
     }
 }
